@@ -108,8 +108,7 @@ class PolicyIteration:
             policy = {k: 0 if self.pi[k][0] > self.pi[k][1] else 1 for k in self.non_terminal_state_space}
             dif_num = policy_dif(OPTIMAL_POLICY, policy)
             print("Different policy num: {}".format(dif_num))
-            if dif_num == 0:
-                break
+            # if dif_num == 0:  break
             cnt += 1
 
     def test_policy(self, episode_num=1_000_000):

@@ -3,11 +3,6 @@ import os
 
 from policy_eval import *
 from env_easy21 import Easy21
-from Q_learning import QLearning
-from policy_iter import PolicyIteration
-from value_iter import ValueIteration
-from monte_carlo import MCMC
-from compare import compare
 
 
 def value_iter_run(test_episode_num=1_000_000):
@@ -103,13 +98,17 @@ if __name__ == "__main__":
     if not os.path.exists(fig_path):
         os.mkdir(fig_path)
 
+    from value_iter import ValueIteration
     value_iter_run()
 
+    from Q_learning import QLearning
     Q_learning_run()
 
+    from policy_iter import PolicyIteration
     policy_iter_run()
 
+    from monte_carlo import MCMC
     MCMC_run()
-
+    
+    from compare import compare
     compare()
-
