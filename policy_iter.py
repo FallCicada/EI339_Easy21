@@ -1,8 +1,25 @@
 import numpy as np
-import pandas as pd
+import os
 
 from env_easy21 import Easy21
 from policy_eval import *
+
+log_path = "./log/"
+fig_path = "./fig/"
+if not os.path.exists(log_path):
+    os.mkdir(log_path)
+if not os.path.exists(fig_path):
+    os.mkdir(fig_path)
+
+global OPTIMAL_POLICY, OPTIMAL_VALUE
+try:
+    OPTIMAL_POLICY = load_file_dangerous(log_path + "optimal_policy.txt")
+except IOError:
+    raise Exception("No file named {}!\nPlease run 'value_iter.py' first.".format(log_path + "optimal_policy.txt"))
+try:
+    OPTIMAL_VALUE = load_file_dangerous(log_path + "optimal_value.txt")
+except IOError:
+    raise Exception("No file named {}!\nPlease run 'value_iter.py' first.".format(log_path + "optimal_value.txt"))
 
 
 class PolicyIteration:
@@ -26,6 +43,7 @@ class PolicyIteration:
         self.pi = {state: [1 / self.action_num] * self.action_num for state in self.non_terminal_state_space}
 
     def update_value(self):
+        """ Update the value function by one iteration. """
         delta = 0
         new_value = {state: 0. for state in self.non_terminal_state_space}
         for s in self.non_terminal_state_space:
@@ -46,6 +64,7 @@ class PolicyIteration:
         return delta
 
     def policy_evaluation(self):
+        """ Update the value function until difference is less than theta. """
         cnt = 1
         while self.update_value() > self.theta:
             print("Eval: {:d}, RMSE: {:.4f}".format(cnt, rms_error(OPTIMAL_VALUE, self.value)))
@@ -54,6 +73,7 @@ class PolicyIteration:
         return cnt
 
     def policy_improvement(self):
+        """ Update the policy by one iteration. """
         stable = True
         for s in self.non_terminal_state_space:
             qsa_list = []
@@ -78,6 +98,7 @@ class PolicyIteration:
         return stable
 
     def policy_iteration(self):
+        """ Update the policy until stable. """
         cnt = 0
         stable = False
         while not stable:
@@ -91,7 +112,11 @@ class PolicyIteration:
                 break
             cnt += 1
 
-    def test_policy(self, episode_num=10_000_000):
+    def test_policy(self, episode_num=1_000_000):
+        """ Test current policy on real environment by certain times. 
+
+        :param episode_num: <int> the number of episodes to run.
+        """
         average_reward = 0
         for i in range(episode_num):
             if (i + 1) % (episode_num // 10) == 0:
@@ -107,9 +132,11 @@ class PolicyIteration:
         return average_reward
 
     def save_fig(self, fig_path):
+        """ Save the value function figure in the given path. """
         plot_V(self.value, save_path=(fig_path + "policy_iter_value.png"))
 
     def save_result(self, log_path):
+        """ Save the logs in the given path. """
         with open(log_path + "policy_iter_value.txt", "w") as f:
             f.write(str(self.value))
         with open(log_path + "policy_iter_policy.txt", "w") as f:
@@ -122,16 +149,15 @@ class PolicyIteration:
             print("No experiment value! Saving average reward trace failed.")
 
 
-if __name__ == '__main__':
+def main():
     env = Easy21()
-    log_path = "./log/"
-    fig_path = "./fig/"
-    OPTIMAL_POLICY = load_file_dangerous(log_path + "optimal_policy.txt")
-    OPTIMAL_VALUE = load_file_dangerous(log_path + "optimal_value.txt")
-    
     model = PolicyIteration(env)
     model.policy_iteration()
     model.test_policy()
 
     model.save_fig(fig_path)
     model.save_result(log_path)
+
+
+if __name__ == '__main__':
+    main()

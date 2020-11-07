@@ -1,13 +1,39 @@
 import numpy as np
-import time
+import os
 
 from env_easy21 import Easy21
 from policy_eval import *
 
+log_path = "./log/"
+fig_path = "./fig/"
+if not os.path.exists(log_path):
+    os.mkdir(log_path)
+if not os.path.exists(fig_path):
+    os.mkdir(fig_path)
+
+global OPTIMAL_POLICY, OPTIMAL_VALUE
+try:
+    OPTIMAL_POLICY = load_file_dangerous(log_path + "optimal_policy.txt")
+except IOError:
+    raise Exception("No file named {}!\nPlease run 'value_iter.py' first.".format(log_path + "optimal_policy.txt"))
+try:
+    OPTIMAL_VALUE = load_file_dangerous(log_path + "optimal_value.txt")
+except IOError:
+    raise Exception("No file named {}!\nPlease run 'value_iter.py' first.".format(log_path + "optimal_value.txt"))
+
 
 class QLearning:
     def __init__(self, env: Easy21, learning_rate=0.05, reward_decay=1., episode_num=1_000_000, epsilon=0.1,
-                 dynamic_epsilon=False, damping_factor=0.997, final_epsilon=0.001):
+                 dynamic_epsilon=False, damping_factor=None, final_epsilon=None):
+        """
+        :param learning_rate: <float> learning rate alpha.
+        :param reward_decay: <float> reward decay factor gamma.
+        :param episode_num: <int> default number of episodes to run.
+        :param epsilon: <float> the exploration factor epsilon.
+        :param dynamic_epsilon: <bool> whether to turn on Dynamic Epsilon mode or not.
+        :param damping_factor: <float> damping factor r for exponential dynamic epsilon, suggest None.
+        :param final_epsilon: <float> minimal epsilon for exponential dynamic epsilon, suggest None.
+        """
         self.env = env
         self.action_space = Easy21.action_space
         self.action_num = Easy21.action_num
@@ -22,19 +48,20 @@ class QLearning:
         self.episode_num = episode_num
         self.epsilon = epsilon
         self.dynamic_epsilon = dynamic_epsilon
-        self.r = damping_factor
-        self.final_epsilon = final_epsilon
+        self.r = damping_factor if damping_factor is not None else np.power(0.05, 10 / self.episode_num)
+        self.final_epsilon = final_epsilon if final_epsilon is not None else 10 / self.episode_num
 
         self.reward_trace = []
         self.average_reward_trace = []
         self.rmse_trace = []
 
         if self.dynamic_epsilon:
-            self.name = "LR={:.3f}_DE={:.3f}_r={:.4f}_{:d}".format(self.alpha, self.epsilon, self.r, self.episode_num)
+            self.name = "LR={:.3f}_DE".format(self.alpha, self.epsilon, self.r, self.episode_num)
         else:
             self.name = "LR={:.3f}_e={:.3f}_{:d}".format(self.alpha, self.epsilon, self.episode_num)
 
     def _update_q_table(self, state_, action_, reward_, next_state_):
+        """ Update Q table. """
         state_ = (state_[0], state_[1])
         next_state_, game_end = (next_state_[0], next_state_[1]), next_state_[2]
         if self.q_table.get(state_) is None: self.q_table[state_] = [0] * self.action_num
@@ -43,7 +70,6 @@ class QLearning:
         q_target = reward_ if game_end == 1 else reward_ + self.gamma * max(self.q_table[next_state_])
         q_predict = self.q_table[state_][action_]
 
-        # self.q_table[state_][action_] = q_predict + self.lr * (q_target - q_predict)
         self.q_table[state_][action_] += self.alpha * (q_target - q_predict)
 
     def choose_action(self, state_):
@@ -77,6 +103,14 @@ class QLearning:
         return reward
 
     def run(self, episode_num=None, section_num=10, print_info=True):
+        """ Run Q-learning algorithm. 
+
+        :param episode_num: <int> the number of episodes to run.
+                                  If left None, then the number will be decided by the default number self.episode_num
+        :param section_num: <int> the number of sections in the running process.
+                                  Used for showing process in each section. E.g. set to 10 will show info for 10 times.
+        :param print_info: <bool> whether to show information or not
+        """
         episode_num = self.episode_num if episode_num is None else episode_num
         average_reward = 0
         average_reward_section = 0
@@ -107,10 +141,12 @@ class QLearning:
                 self.epsilon = max(self.epsilon * self.r, self.final_epsilon)
 
     def save_fig(self, fig_path):
-        plot_Q(self.q_table, save_path=(fig_path + "Q_learning_" + self.name + ".png"))
+        """ Save the value function figure in the given path. """
+        plot_Q(self.q_table, save_path=(fig_path + "Q_learning_" + self.name + "_value.png"))
 
     def save_result(self, log_path):
-        with open(log_path + "Q_learning_" + self.name + ".txt", "w") as f:
+        """ Save the logs in the given path. """
+        with open(log_path + "Q_learning_" + self.name + "_value.txt", "w") as f:
             f.write(str(self.q_table))
         try:
             ART = np.array(self.average_reward_trace, dtype=np.float16)
@@ -123,44 +159,40 @@ class QLearning:
             print("No experiment value! Saving average reward trace failed.")
 
 
-if __name__ == '__main__':
+def main():
     env = Easy21()
-    log_path = "./log/"
-    fig_path = "./fig/"
-    OPTIMAL_POLICY = load_file_dangerous(log_path + "optimal_policy.txt")
-    OPTIMAL_VALUE = load_file_dangerous(log_path + "optimal_value.txt")
     ave_rewards, rmses, names = [], [], []
 
-    EPISODE_NUM = 100_000
-    PARAM_DICT = {"DynamicEpsilon, LearningRate=0.005, Epsilon=0.9, DampFactor=0.9999": {"alpha": 0.005},
-                  "DynamicEpsilon, LearningRate=0.01, Epsilon=0.9, DampFactor=0.9999": {"alpha": 0.01},
-                  "DynamicEpsilon, LearningRate=0.05, Epsilon=0.9, DampFactor=0.9999": {"alpha": 0.05},
-                  "DynamicEpsilon, LearningRate=0.1, Epsilon=0.9, DampFactor=0.9999": {"alpha": 0.1},
-                  "DynamicEpsilon, LearningRate=0.5, Epsilon=0.9, DampFactor=0.9999": {"alpha": 0.5},
+    EPISODE_NUM = 100_000  # episode number
+    PARAM_DICT = {"DynamicEpsilon, LearningRate=0.005": {"alpha": 0.005},
+                  "DynamicEpsilon, LearningRate=0.01": {"alpha": 0.01},
+                  "DynamicEpsilon, LearningRate=0.05": {"alpha": 0.05},
+                  "DynamicEpsilon, LearningRate=0.1": {"alpha": 0.1},
+                  "DynamicEpsilon, LearningRate=0.5": {"alpha": 0.5},
 
                   "Epsilon, LearningRate=0.01, Epsilon=0.001": {"de": False, "e": 0.001},
                   "Epsilon, LearningRate=0.01, Epsilon=0.01": {"de": False, "e": 0.01},
                   "Epsilon, LearningRate=0.01, Epsilon=0.1": {"de": False, "e": 0.1},
                   "Epsilon, LearningRate=0.01, Epsilon=1.0": {"de": False, "e": 1.},
-                  }
+                  }  # dict of 'name: param'
 
     for name, param in PARAM_DICT.items():
-        print("#" * 30 + "\n" + name + "\n" + "#" * 30)
+        print("#" * 5, name, "#" * 5)
         model = QLearning(env, episode_num=EPISODE_NUM,
                           learning_rate=param.get("alpha", 0.01), 
                           dynamic_epsilon=param.get("de", True),
-                          epsilon=param.get("e", 0.9),
-                          damping_factor=0.9999,
-                          final_epsilon=0.001)
-        model.run()
+                          epsilon=param.get("e", 0.9))
+        model.run(print_info=False)
         ave_rewards.append(model.average_reward_trace)
         rmses.append(model.rmse_trace)
         names.append(name)
         model.save_fig(fig_path)
         model.save_result(log_path)
 
-    plot_learning_curve(ave_rewards[:5], rmses[:5], names[:5])
-    plot_learning_curve(ave_rewards[5:], rmses[5:], names[5:])
+    plot_learning_curve(ave_rewards[:5], rmses[:5], names[:5],
+                        save_path=fig_path + "different_alpha_CMP.png", show=True)
+    plot_learning_curve(ave_rewards[5:], rmses[5:], names[5:],
+                        save_path=fig_path + "different_epsilon_CMP.png", show=True)
 
     result = []
     for i in range(len(ave_rewards)):
@@ -169,3 +201,7 @@ if __name__ == '__main__':
     for name, reward in result:
         print(name)
         print("\tAverage Reward: {:.4f}".format(reward))
+
+
+if __name__ == '__main__':
+    main()

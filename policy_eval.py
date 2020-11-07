@@ -7,11 +7,17 @@ from mpl_toolkits.mplot3d import Axes3D
 from env_easy21 import Easy21
 
 
-def plot_V(v_table, save_path=None):
+def plot_V(v_table, save_path=None, show=False):
+    """ Plot value function with given value table. 
+
+    :param v_table: <dict> value function dict of Easy21 game.
+    :param save_path: <str> path to save the figure. None for not saving figure.
+    :param show: <bool> whether to show the figure or not.
+    """
     fig = plt.figure(figsize=(20, 10))
     ax = fig.gca(projection='3d')
 
-    # Make data.
+    # Make data
     dealer_sum_idx = np.arange(1, 11)
     player_sum_idx = np.arange(1, 22)
     dealer_sum_idx, player_sum_idx = np.meshgrid(dealer_sum_idx, player_sum_idx)
@@ -21,45 +27,7 @@ def plot_V(v_table, save_path=None):
         player_sum, dealer_sum = state
         max_Q[player_sum - 1][dealer_sum - 1] = v_table.get(state, 0)
 
-    # Plot the surface.
-    surf = ax.plot_surface(dealer_sum_idx, player_sum_idx, max_Q, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-
-    # Customize plot
-    ax.set_zlim(-1.01, 1.01)
-    ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
-    plt.xlabel("Dealer's Initial Sum", fontsize=12)
-    plt.ylabel("Player\'s Sum", fontsize=12)
-    plt.title("Optimal Value Function", fontsize=16)
-
-    plt.xticks(np.arange(1, 11))
-    plt.yticks(np.arange(1, 22))
-
-    # Add a color bar which maps values to colors.
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-    fig.tight_layout()
-    if save_path is not None:
-        plt.savefig(save_path)
-    # plt.show()
-    plt.close()
-
-
-def plot_Q(q_table, save_path=None):
-    fig = plt.figure(figsize=(20, 10))
-    ax = fig.gca(projection='3d')
-
-    # Make data.
-    dealer_sum_idx = np.arange(1, 11)
-    player_sum_idx = np.arange(1, 22)
-    dealer_sum_idx, player_sum_idx = np.meshgrid(dealer_sum_idx, player_sum_idx)
-
-    max_Q = np.ndarray(shape=(21, 10))
-    for state in Easy21.non_terminal_state_space:
-        player_sum, dealer_sum = state
-        max_Q[player_sum - 1][dealer_sum - 1] = max(q_table.get(state, [0, 0]))
-
-    # Plot the surface.
+    # Plot the surface
     surf = ax.plot_surface(dealer_sum_idx, player_sum_idx, max_Q, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 
     # Customize plot
@@ -74,12 +42,54 @@ def plot_Q(q_table, save_path=None):
     plt.xticks(np.arange(1, 11))
     plt.yticks(np.arange(1, 22))
 
-    # Add a color bar which maps values to colors.
+    # Add a color bar which maps values to colors
     fig.colorbar(surf, shrink=0.5, aspect=5)
     fig.tight_layout()
     if save_path is not None:
         plt.savefig(save_path)
-    # plt.show()
+    if show:
+        plt.show()
+    plt.close()
+
+
+def plot_Q(q_table, save_path=None, show=False):
+    """ Plot value function with given q value table. 
+
+    :param q_table: <dict> q value function dict of Easy21 game.
+    :param save_path: <str> path to save the figure. None for not saving figure.
+    :param show: <bool> whether to show the figure or not.
+    """
+    fig = plt.figure(figsize=(20, 10))
+    ax = fig.gca(projection='3d')
+
+    dealer_sum_idx = np.arange(1, 11)
+    player_sum_idx = np.arange(1, 22)
+    dealer_sum_idx, player_sum_idx = np.meshgrid(dealer_sum_idx, player_sum_idx)
+
+    max_Q = np.ndarray(shape=(21, 10))
+    for state in Easy21.non_terminal_state_space:
+        player_sum, dealer_sum = state
+        max_Q[player_sum - 1][dealer_sum - 1] = max(q_table.get(state, [0, 0]))
+
+    surf = ax.plot_surface(dealer_sum_idx, player_sum_idx, max_Q, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+
+    ax.set_zlim(-1.01, 1.01)
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+    plt.xlabel("Dealer's Initial Sum", fontsize=12)
+    plt.ylabel("Player\'s Sum", fontsize=12)
+    plt.title("Value Function", fontsize=16)
+
+    plt.xticks(np.arange(1, 11))
+    plt.yticks(np.arange(1, 22))
+
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    fig.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path)
+    if show:
+        plt.show()
     plt.close()
 
 
@@ -114,6 +124,7 @@ def rms_error_q(value, q_value):
 
 
 def print_policy(policy):
+    """ Print a policy. """
     for i in range(1, 22):
         for j in range(1, 11):
             p = "Stick" if policy[i, j] == 0 else "Hit"
@@ -122,6 +133,7 @@ def print_policy(policy):
 
 
 def load_file_dangerous(file_path):
+    """ Load a single-lined file. Using eval with no safety check! """
     #TODO: Dangerous `eval`! Be aware of the content in the file
     with open(file_path, "r") as f:
         content = eval(f.read().strip())
@@ -129,11 +141,21 @@ def load_file_dangerous(file_path):
 
 
 def load_reward(reward_file_path):
+    """ Load the reward trace from a file. """
     reward = np.loadtxt(reward_file_path, dtype=np.float16, delimiter=",")
     return reward
 
 
-def plot_learning_curve(ave_rewards, rmses, names):
+def plot_learning_curve(ave_rewards, rmses, names, save_path=None, show=False):
+    """ Plotting the learning curve. 
+
+    :param ave_rewards: <list> the list of average reward trace to plot.
+                               All elements should be of the same length. Below 2 parameters are the same.
+    :param rmses: <list> the list of RMSE trace to plot.
+    :param rmses: <list> the list of names to plot.
+    :param save_path: <str> path to save the figure. None for not saving figure.
+    :param show: <bool> whether to show the figure or not.
+    """
     def smooth(l, i, slice_num):
         start = int(i * len(l) / slice_num)
         end = int((i + 1) * len(l) / slice_num)
@@ -182,6 +204,9 @@ def plot_learning_curve(ave_rewards, rmses, names):
 
     ax1.legend(ncol=1)
     fig.tight_layout()
-    plt.show()
-    # plt.close()
+    if save_path is not None:
+        plt.savefig(save_path)
+    if show:
+        plt.show()
+    plt.close()
 

@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 from policy_eval import *
 from env_easy21 import Easy21
@@ -25,6 +26,7 @@ class ValueIteration:
         self.pi = {state: 0 for state in self.non_terminal_state_space}
 
     def update_value(self):
+        """ Update the value function by one iteration. """
         delta = 0
         new_value = {state: 0. for state in self.non_terminal_state_space}
         for s in self.non_terminal_state_space:
@@ -45,6 +47,7 @@ class ValueIteration:
         return delta
 
     def value_iteration(self):
+        """ Update the value function until difference is less than theta. """
         cnt = 1
         delta = self.theta + 1
         while delta > self.theta:
@@ -53,25 +56,29 @@ class ValueIteration:
             cnt += 1
         return cnt
 
-    def test_policy(self, episode_num=10_000_000):
+    def test_policy(self, episode_num=1_000_000):
+        """ Test current policy on real environment by certain times. 
+
+        :param episode_num: <int> the number of episodes to run.
+        """
         average_reward = 0
         for i in range(episode_num):
             if (i + 1) % (episode_num // 10) == 0:
-                print("Episode: {}".format(i + 1))
-                print("Average Reward: {}".format(average_reward))
+                print("Episode: {} / {}".format(i + 1, episode_num))
+                print("\tAverage Reward: {}".format(average_reward))
             state, reward = self.env.reset(), 0
             while state[2] == 0:
                 action = self.pi[(state[0], state[1])]
                 state, reward = self.env.step(state, action)
-            # #### Statistic average, incremental update #### #
             average_reward += (reward - average_reward) / (i + 1)
             self.average_reward_trace.append(average_reward)
-        return average_reward
 
     def save_fig(self, fig_path):
+        """ Save the value function figure in the given path. """
         plot_V(self.value, save_path=(fig_path + "optimal_value.png"))
 
     def save_result(self, log_path):
+        """ Save the logs in the given path. """
         with open(log_path + "optimal_value.txt", "w") as f:
             f.write(str(self.value))
         with open(log_path + "optimal_policy.txt", "w") as f:
@@ -84,10 +91,14 @@ class ValueIteration:
             print("No experiment value! Saving average reward trace failed.")
 
 
-if __name__ == '__main__':
+def main():
     env = Easy21()
     log_path = "./log/"
     fig_path = "./fig/"
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
+    if not os.path.exists(fig_path):
+        os.mkdir(fig_path)
     
     model = ValueIteration(env)
     model.value_iteration()
@@ -95,3 +106,8 @@ if __name__ == '__main__':
 
     model.save_fig(fig_path)
     model.save_result(log_path)
+
+
+if __name__ == '__main__':
+    main()
+

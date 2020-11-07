@@ -76,6 +76,10 @@ class Easy21:
         """
         return np.random.randint(1, 11), np.random.randint(1, 11), 0
 
+    """
+    Below is to calculate the transition matrix.
+    This is useful in value iteration and policy iteration
+    """
     @lazy
     def trans_mat_player(self):
         mat = np.zeros([22, 22], dtype=np.float64)
@@ -127,7 +131,5 @@ class Easy21:
                     else:
                         next_state = (player_sum, -1, 1)
                         res_dealer.append((prob, str(next_state), 1))
-
             trans_mat[state] = [res_dealer, res_player]
-
         return trans_mat
